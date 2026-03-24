@@ -1553,13 +1553,17 @@ function rejectItem(sheet, index) {
 }
 
 async function refreshFromCloud() {
-  showNotice('Refreshing...');
-  const ok = await cloudLoad();
-  if (ok) {
-    renderAll();
-    showNotice('Updated from cloud!');
-  } else {
-    showNotice('Could not refresh — using local data');
+  showNotice('Refreshing from cloud...');
+  try {
+    const ok = await cloudLoad();
+    if (ok) {
+      renderAll();
+      showNotice('Updated from cloud!');
+    } else {
+      showNotice('Could not refresh — check connection');
+    }
+  } catch(e) {
+    showNotice('Refresh failed');
   }
 }
 
@@ -2192,11 +2196,20 @@ async function unlock() {
     currentUser = user;
     input.disabled = true;
     document.querySelector('.lock-btn').disabled = true;
-    document.querySelector('.lock-box p').textContent = 'Welcome ' + user.name + '! Loading...';
+    document.querySelector('.lock-box p').textContent = 'Welcome ' + user.name + '! Loading from cloud...';
     error.textContent = '';
 
-    const cloudOk = await cloudLoad();
-    if (!cloudOk) { loadData(); }
+    // ALWAYS try cloud first — this is the source of truth
+    let cloudOk = false;
+    try {
+      cloudOk = await cloudLoad();
+    } catch(e) { console.log('Cloud load error:', e); }
+
+    if (!cloudOk) {
+      // Cloud failed — try localStorage as fallback
+      loadData();
+      console.log('Using localStorage fallback');
+    }
 
     // Show user badge
     const badge = document.getElementById('userBadge');
@@ -2208,7 +2221,7 @@ async function unlock() {
     document.getElementById('autosaveIndicator').style.display = '';
     renderAll();
     startAutoSave();
-    showNotice('Welcome ' + user.name + '!');
+    showNotice(cloudOk ? 'Welcome ' + user.name + '!' : 'Welcome ' + user.name + ' (offline mode)');
   } else {
     input.classList.add('error');
     error.textContent = 'Incorrect passcode. Try again.';
