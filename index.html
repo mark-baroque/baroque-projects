@@ -648,6 +648,10 @@
     <input type="password" class="lock-input" id="lockInput" maxlength="5" placeholder="&bull;&bull;&bull;&bull;&bull;" onkeydown="if(event.key==='Enter')unlock()">
     <button class="lock-btn" onclick="unlock()">Unlock</button>
     <div class="lock-error-msg" id="lockError"></div>
+    <div id="lockSavesInfo" style="margin-top:16px;font-size:12px;color:var(--text-muted);display:none">
+      <span style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle" id="lockDot"></span>
+      Cloud saves left: <strong id="lockSavesCount">--</strong>/100 (resets every hour)
+    </div>
   </div>
 </div>
 
@@ -1585,6 +1589,18 @@ function logout() {
   readAll();
   saveLocal();
   cloudSave().then(() => {
+    // Show saves remaining on lock screen
+    const remaining = document.getElementById('savesRemaining').textContent;
+    const lockInfo = document.getElementById('lockSavesInfo');
+    const lockCount = document.getElementById('lockSavesCount');
+    const lockDot = document.getElementById('lockDot');
+    if (lockInfo && remaining !== '--') {
+      lockInfo.style.display = '';
+      lockCount.textContent = remaining;
+      const num = parseInt(remaining);
+      lockDot.style.background = num < 10 ? 'var(--danger)' : 'var(--success)';
+      lockCount.style.color = num < 10 ? 'var(--danger)' : 'var(--success)';
+    }
     currentUser = null;
     document.getElementById('mainApp').style.display = 'none';
     document.getElementById('autosaveIndicator').style.display = 'none';
