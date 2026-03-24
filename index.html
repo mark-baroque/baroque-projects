@@ -662,7 +662,7 @@
     </button>
     <button class="btn-add" onclick="addRow()">+ Add Row</button>
     <button class="btn-add" onclick="addSectionHeader()">+ Add Section</button>
-    <button class="btn-save" onclick="cloudSave().then(()=>showNotice('Saved to cloud!'))" title="Save to cloud">
+    <button class="btn-save" onclick="readAll();saveAll();cloudSave().then(()=>showNotice('Saved to cloud!'))" title="Save to cloud">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;vertical-align:-2px"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
       Save
     </button>
@@ -1500,14 +1500,17 @@ function renderApprovals() {
 function approveItem(sheet, index) {
   if (!currentUser || !currentUser.canApprove) { alert('Only managers can approve.'); return; }
   let dataArr = sheet === 'projects' ? projectsData : sheet === 'quickfix' ? quickfixData : dailyData;
+  if (!dataArr[index]) return;
   dataArr[index].status = 'Approved';
   dataArr[index].updated = now();
-  if (!dataArr[index].notes) dataArr[index].notes = [];
-  if (typeof dataArr[index].notes === 'string') { const old = dataArr[index].notes; dataArr[index].notes = old ? [{ user:'System', time:'', text:old }] : []; }
+  if (!dataArr[index].notes || typeof dataArr[index].notes === 'string') {
+    const old = dataArr[index].notes;
+    dataArr[index].notes = (old && typeof old === 'string') ? [{ user:'System', time:'', text:old }] : [];
+  }
   dataArr[index].notes.push({ user: currentUser.name, time: now(), text: 'Approved' });
   saveAll();
-  cloudSave();
   renderAll();
+  cloudSave();
   showNotice('Approved!');
 }
 
@@ -1515,14 +1518,17 @@ function rejectItem(sheet, index) {
   if (!currentUser || !currentUser.canApprove) { alert('Only managers can approve/reject.'); return; }
   const reason = prompt('Reason for rejection (optional):');
   let dataArr = sheet === 'projects' ? projectsData : sheet === 'quickfix' ? quickfixData : dailyData;
+  if (!dataArr[index]) return;
   dataArr[index].status = 'On Hold';
   dataArr[index].updated = now();
-  if (!dataArr[index].notes) dataArr[index].notes = [];
-  if (typeof dataArr[index].notes === 'string') { const old = dataArr[index].notes; dataArr[index].notes = old ? [{ user:'System', time:'', text:old }] : []; }
+  if (!dataArr[index].notes || typeof dataArr[index].notes === 'string') {
+    const old = dataArr[index].notes;
+    dataArr[index].notes = (old && typeof old === 'string') ? [{ user:'System', time:'', text:old }] : [];
+  }
   dataArr[index].notes.push({ user: currentUser.name, time: now(), text: 'Rejected' + (reason ? ': ' + reason : '') });
   saveAll();
-  cloudSave();
   renderAll();
+  cloudSave();
   showNotice('Rejected — moved to On Hold');
 }
 
@@ -1683,6 +1689,7 @@ function onStatusChange(sel, sheet, index) {
   }
   saveAll();
   renderApprovals();
+  renderApproved();
 }
 
 function editRow(btn) {
@@ -2063,7 +2070,6 @@ let currentUser = null;
 
 // === CLOUD SAVE/LOAD ===
 async function cloudSave() {
-  readAll();
   const payload = {
     projects: projectsData,
     quickfix: quickfixData,
@@ -2200,7 +2206,7 @@ function startAutoSave() {
   if (autoSaveInterval) clearInterval(autoSaveInterval);
   // Initial save timestamp
   document.getElementById('autosaveTime').textContent = new Date().toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
-  autoSaveInterval = setInterval(() => { cloudSave(); }, 30000);
+  autoSaveInterval = setInterval(() => { readAll(); saveAll(); cloudSave(); }, 30000);
 }
 
 // Focus passcode input on load
