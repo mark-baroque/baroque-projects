@@ -659,7 +659,7 @@
     <span class="user-badge" id="userBadge"></span>
     <button class="btn-add" onclick="addRow()">+ Add Row</button>
     <button class="btn-add" onclick="addSectionHeader()">+ Add Section</button>
-    <button class="btn-save" onclick="readAll();saveLocal();cloudSave().then(()=>showNotice('Saved to cloud!'))" title="Save to cloud">
+    <button class="btn-save" onclick="doSave()" title="Save to cloud">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;vertical-align:-2px"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
       Save
     </button>
@@ -1120,9 +1120,9 @@ function now() {
 }
 
 function loadData() {
-  const sp = localStorage.getItem('baroque_projects_v5');
-  const sq = localStorage.getItem('baroque_quickfix_v2');
-  const sd = localStorage.getItem('baroque_daily_v2');
+  const sp = localStorage.getItem('baroque_projects_v6');
+  const sq = localStorage.getItem('baroque_quickfix_v3');
+  const sd = localStorage.getItem('baroque_daily_v3');
   projectsData = sp ? JSON.parse(sp) : JSON.parse(JSON.stringify(DEFAULT_PROJECTS));
   quickfixData = sq ? JSON.parse(sq) : JSON.parse(JSON.stringify(DEFAULT_QUICKFIX));
   dailyData = sd ? JSON.parse(sd) : JSON.parse(JSON.stringify(DEFAULT_DAILY));
@@ -1132,31 +1132,36 @@ let _saving = false;
 let _cloudSaveTimer = null;
 
 function saveLocal() {
-  localStorage.setItem('baroque_projects_v5', JSON.stringify(projectsData));
-  localStorage.setItem('baroque_quickfix_v2', JSON.stringify(quickfixData));
-  localStorage.setItem('baroque_daily_v2', JSON.stringify(dailyData));
+  localStorage.setItem('baroque_projects_v6', JSON.stringify(projectsData));
+  localStorage.setItem('baroque_quickfix_v3', JSON.stringify(quickfixData));
+  localStorage.setItem('baroque_daily_v3', JSON.stringify(dailyData));
 }
 
+// This is the ONLY save function everything calls
 function saveAll() {
   saveLocal();
-  // Cloud save on every change (debounced 10s to stay within API limits)
-  if (currentUser) {
-    if (_cloudSaveTimer) clearTimeout(_cloudSaveTimer);
-    _cloudSaveTimer = setTimeout(() => {
-      if (!_saving) cloudSave();
-    }, 10000);
-  }
+  scheduleCloudSave();
 }
 
-function manualSave() {
+function scheduleCloudSave() {
+  if (!currentUser || _saving) return;
+  if (_cloudSaveTimer) clearTimeout(_cloudSaveTimer);
+  _cloudSaveTimer = setTimeout(() => { cloudSave(); }, 10000);
+}
+
+// Save button — reads DOM edits, saves immediately to cloud
+async function doSave() {
   readAll();
-  saveAll();
-  showNotice('Saved!');
+  saveLocal();
+  await cloudSave();
+  showNotice('Saved to cloud!');
 }
 
+// Called when Edit row clicks Done — reads DOM into data
 function autoSave() {
   readAll();
-  saveAll();
+  saveLocal();
+  scheduleCloudSave();
 }
 
 function readAll() {
@@ -2128,37 +2133,28 @@ async function cloudSave() {
   if (dot) dot.style.background = 'var(--gold)';
   if (el) el.textContent = 'saving...';
 
-  const payload = {
-    projects: projectsData,
-    quickfix: quickfixData,
-    daily: dailyData,
-    updatedAt: now()
-  };
   try {
+    const payload = JSON.stringify({
+      projects: projectsData,
+      quickfix: quickfixData,
+      daily: dailyData,
+      updatedAt: now()
+    });
     const res = await fetch('https://api.github.com/gists/' + GIST_ID, {
       method: 'PATCH',
-      headers: {
-        'Authorization': 'token ' + _gt(),
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        files: { 'data.json': { content: JSON.stringify(payload) } }
-      })
+      headers: { 'Authorization': 'token ' + _gt(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ files: { 'data.json': { content: payload } } })
     });
+    const timeStr = new Date().toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
     if (res.ok) {
-      saveLocal();
-      const timeStr = new Date().toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
       if (el) el.textContent = timeStr;
-      if (dot) { dot.style.background = 'var(--success)'; }
+      if (dot) dot.style.background = 'var(--success)';
     } else {
-      if (el) el.textContent = 'retry in 60s';
+      if (el) el.textContent = 'save failed - click Save to retry';
       if (dot) dot.style.background = 'var(--danger)';
-      console.log('Cloud save failed:', res.status);
     }
   } catch(e) {
-    console.log('Cloud save error:', e);
-    saveLocal();
-    if (el) el.textContent = 'offline - saved locally';
+    if (el) el.textContent = 'offline';
     if (dot) dot.style.background = 'var(--danger)';
   }
   _saving = false;
@@ -2171,20 +2167,17 @@ async function cloudLoad() {
     });
     if (res.ok) {
       const gist = await res.json();
-      const content = gist.files['data.json'].content;
-      const data = JSON.parse(content);
-      if (data.projects && data.projects.length > 0) { projectsData = data.projects; }
-      else { projectsData = JSON.parse(JSON.stringify(DEFAULT_PROJECTS)); }
-      if (data.quickfix && data.quickfix.length > 0) { quickfixData = data.quickfix; }
-      else { quickfixData = JSON.parse(JSON.stringify(DEFAULT_QUICKFIX)); }
-      if (data.daily) { dailyData = data.daily; }
-      else { dailyData = JSON.parse(JSON.stringify(DEFAULT_DAILY)); }
+      const data = JSON.parse(gist.files['data.json'].content);
+      if (data.projects && data.projects.length > 0) projectsData = data.projects;
+      else projectsData = JSON.parse(JSON.stringify(DEFAULT_PROJECTS));
+      if (data.quickfix) quickfixData = data.quickfix;
+      else quickfixData = JSON.parse(JSON.stringify(DEFAULT_QUICKFIX));
+      if (data.daily) dailyData = data.daily;
+      else dailyData = JSON.parse(JSON.stringify(DEFAULT_DAILY));
       saveLocal();
       return true;
     }
-  } catch(e) {
-    console.log('Cloud load failed, using local', e);
-  }
+  } catch(e) { console.log('Cloud load failed', e); }
   return false;
 }
 
@@ -2252,9 +2245,9 @@ function handleImportJSON(e) {
       if (data.projects) projectsData = data.projects;
       if (data.quickfix) quickfixData = data.quickfix;
       if (data.daily) dailyData = data.daily;
-      saveAll();
+      saveLocal();
       renderAll();
-      cloudSave(); // push to cloud immediately
+      cloudSave();
       showNotice('Data imported & synced!');
     } catch(err) { alert('Invalid JSON file.'); }
   };
@@ -2267,9 +2260,8 @@ let autoSaveInterval = null;
 
 function startAutoSave() {
   if (autoSaveInterval) clearInterval(autoSaveInterval);
-  // Initial save timestamp
   document.getElementById('autosaveTime').textContent = new Date().toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
-  autoSaveInterval = setInterval(() => { readAll(); saveAll(); }, 60000);
+  autoSaveInterval = setInterval(() => { cloudSave(); }, 60000);
 }
 
 // Focus passcode input on load
