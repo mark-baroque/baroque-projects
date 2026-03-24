@@ -500,6 +500,49 @@
   }
   .btn-modal-submit:hover { background: var(--gold-dark); box-shadow: 0 4px 12px rgba(165,132,73,0.4); }
 
+  /* User badge */
+  .user-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 600; padding: 6px 14px;
+    border-radius: 20px; margin-right: 8px;
+  }
+  .user-mark { background: #ede9fe; color: #7c3aed; }
+  .user-sahle { background: #dbeafe; color: #2563eb; }
+  .user-badge .user-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+  }
+  .user-mark .user-dot { background: #7c3aed; }
+  .user-sahle .user-dot { background: #2563eb; }
+
+  /* Notes thread */
+  .notes-thread { max-height: 120px; overflow-y: auto; min-width: 160px; }
+  .note-entry {
+    font-size: 11px; padding: 4px 0; border-bottom: 1px solid var(--border-light);
+    line-height: 1.4;
+  }
+  .note-entry:last-child { border-bottom: none; }
+  .note-meta { font-weight: 700; font-size: 10px; }
+  .note-meta-mark { color: #7c3aed; }
+  .note-meta-sahle { color: #2563eb; }
+  .note-text { color: var(--text); }
+  .add-note-btn {
+    font-size: 10px; color: var(--gold); cursor: pointer; font-weight: 600;
+    border: none; background: none; padding: 2px 0; font-family: inherit;
+  }
+  .add-note-btn:hover { text-decoration: underline; }
+
+  /* Approve/Reject buttons */
+  .btn-approve {
+    background: var(--success-bg); color: var(--success); font-size: 11px; padding: 5px 10px;
+    border: 1px solid #a7f3d0; border-radius: 6px; font-weight: 600;
+  }
+  .btn-approve:hover { background: #d1fae5; }
+  .btn-reject {
+    background: var(--danger-bg); color: var(--danger); font-size: 11px; padding: 5px 10px;
+    border: 1px solid #fecaca; border-radius: 6px; font-weight: 600;
+  }
+  .btn-reject:hover { background: #fee2e2; }
+
   /* Lock Screen */
   .lock-screen {
     position: fixed; top: 0; left: 0; right: 0; bottom: 0;
@@ -600,7 +643,7 @@
   <div class="lock-box">
     <div class="lock-icon">&#128274;</div>
     <h2><span>Baroque Group</span></h2>
-    <p>Enter passcode to access Projects Overview</p>
+    <p>Enter your passcode to access Projects Overview</p>
     <input type="password" class="lock-input" id="lockInput" maxlength="5" placeholder="&bull;&bull;&bull;&bull;&bull;" onkeydown="if(event.key==='Enter')unlock()">
     <button class="lock-btn" onclick="unlock()">Unlock</button>
     <div class="lock-error-msg" id="lockError"></div>
@@ -613,18 +656,13 @@
 <div class="header">
   <h1><span>Baroque Group</span> - Projects Overview</h1>
   <div class="toolbar">
+    <span class="user-badge" id="userBadge"></span>
     <button class="btn-add" onclick="addRow()">+ Add Row</button>
     <button class="btn-add" onclick="addSectionHeader()">+ Add Section</button>
-    <button class="btn-icon" onclick="exportJSON()" title="Export Data Backup">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    <button class="btn-save" onclick="cloudSave().then(()=>showNotice('Saved to cloud!'))" title="Save to cloud">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;vertical-align:-2px"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+      Save
     </button>
-    <button class="btn-icon" onclick="triggerImportJSON()" title="Import Data Backup">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-    </button>
-    <button class="btn-icon" onclick="exportCSV()" title="Export as CSV">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-    </button>
-    <input type="file" id="importFileInput" accept=".json" style="display:none" onchange="handleImportJSON(event)">
   </div>
 </div>
 
@@ -803,7 +841,7 @@
           <th>Status</th>
           <th>Last Updated</th>
           <th>Notes</th>
-          <th style="width:70px;text-align:center">Action</th>
+          <th style="width:170px;text-align:center">Actions</th>
         </tr>
       </thead>
       <tbody id="tableBody-approvals"></tbody>
@@ -1114,7 +1152,7 @@ function readSheet(sheet) {
           desPct: selDes ? parseInt(selDes.value) : 0,
           status: selStatus ? selStatus.value : 'Not Started',
           updated: cells[8].textContent.trim(),
-          notes: cells[9].textContent.trim()
+          notes: projectsData[parseInt(row.dataset.idx)]?.notes || ''
         });
       } else if (sheet === 'quickfix') {
         const cells = row.querySelectorAll('td');
@@ -1127,7 +1165,7 @@ function readSheet(sheet) {
           desc: cells[4].textContent.trim(),
           status: sel ? sel.value : 'Not Started',
           updated: cells[6].textContent.trim(),
-          notes: cells[7].textContent.trim()
+          notes: quickfixData[parseInt(row.dataset.idx)]?.notes || ''
         });
       } else if (sheet === 'daily') {
         const cells = row.querySelectorAll('td');
@@ -1143,7 +1181,7 @@ function readSheet(sheet) {
           priority: selPriority ? selPriority.value : 'Medium',
           status: selStatus ? selStatus.value : 'Not Started',
           updated: cells[6].textContent.trim(),
-          notes: cells[7].textContent.trim()
+          notes: dailyData[parseInt(row.dataset.idx)]?.notes || ''
         });
       }
     }
@@ -1161,6 +1199,48 @@ function statusClass(status) {
 
 function pctOptions(current) {
   return [0,10,20,25,30,40,50,60,70,75,80,90,100].map(v => `<option ${v===current?'selected':''}>${v}%</option>`).join('');
+}
+
+// === NOTES THREAD ===
+function renderNotes(notes) {
+  if (!notes || (typeof notes === 'string' && !notes.trim()) || (Array.isArray(notes) && notes.length === 0)) {
+    return '<div class="notes-thread"><span style="color:var(--text-muted);font-size:11px">--</span></div>';
+  }
+  // Convert old string notes to array
+  if (typeof notes === 'string') {
+    return '<div class="notes-thread"><div class="note-entry"><span class="note-text">' + esc(notes) + '</span></div></div>';
+  }
+  let html = '<div class="notes-thread">';
+  notes.forEach(n => {
+    const metaCls = n.user === 'Mark' ? 'note-meta-mark' : 'note-meta-sahle';
+    html += '<div class="note-entry"><span class="note-meta ' + metaCls + '">' + esc(n.user) + ' · ' + esc(n.time) + '</span><br><span class="note-text">' + esc(n.text) + '</span></div>';
+  });
+  html += '</div>';
+  return html;
+}
+
+function addNote(sheet, index) {
+  const text = prompt('Add a note:');
+  if (!text || !text.trim()) return;
+  const entry = { user: currentUser.name, time: now(), text: text.trim() };
+  let dataArr;
+  if (sheet === 'projects') dataArr = projectsData;
+  else if (sheet === 'quickfix') dataArr = quickfixData;
+  else dataArr = dailyData;
+
+  const item = dataArr[index];
+  if (!item.notes) item.notes = [];
+  if (typeof item.notes === 'string') {
+    const old = item.notes;
+    item.notes = old ? [{ user: 'System', time: '', text: old }] : [];
+  }
+  item.notes.push(entry);
+  item.updated = now();
+  saveAll();
+  if (sheet === 'projects') renderProjects();
+  else if (sheet === 'quickfix') renderQuickfix();
+  else renderDaily();
+  renderApprovals();
 }
 
 function workloadTag(exists) {
@@ -1224,7 +1304,7 @@ function renderProjects() {
         </td>
         <td><select class="status-select ${statusClass(item.status)}" onchange="onStatusChange(this,'projects',${i})">${statusOptions(item.status)}</select></td>
         <td class="date-cell">${esc(item.updated)}</td>
-        <td contenteditable="false">${esc(item.notes)}</td>
+        <td>${renderNotes(item.notes)}<button class="add-note-btn" onclick="addNote('projects',${i})">+ note</button></td>
         <td class="actions-col"><button class="btn-edit" onclick="editRow(this)">Edit</button><button class="btn-delete" onclick="deleteProjectRow(${i})">X</button></td>`;
     }
     tbody.appendChild(tr);
@@ -1251,11 +1331,11 @@ function renderQuickfix() {
         <td contenteditable="false">${esc(item.task)}</td>
         <td contenteditable="false">${esc(item.project || '')}</td>
         <td contenteditable="false">${esc(item.dept)}</td>
-        <td class="url-cell">${linkHtml}</td>
+        <td class="url-cell link-cell">${linkHtml}</td>
         <td contenteditable="false">${esc(item.desc)}</td>
         <td><select class="status-select ${statusClass(item.status)}" onchange="onStatusChange(this,'quickfix',${i})">${statusOptions(item.status)}</select></td>
         <td class="date-cell">${esc(item.updated)}</td>
-        <td contenteditable="false">${esc(item.notes)}</td>
+        <td>${renderNotes(item.notes)}<button class="add-note-btn" onclick="addNote('quickfix',${i})">+ note</button></td>
         <td class="actions-col"><button class="btn-edit" onclick="editRow(this)">Edit</button><button class="btn-delete" onclick="deleteQuickfixRow(${i})">X</button></td>`;
     }
     tbody.appendChild(tr);
@@ -1292,7 +1372,7 @@ function renderDaily() {
         </select></td>
         <td><select class="status-select ${statusClass(item.status)}" onchange="onStatusChange(this,'daily',${i})">${statusOptions(item.status)}</select></td>
         <td class="date-cell">${esc(item.updated)}</td>
-        <td contenteditable="false">${esc(item.notes)}</td>
+        <td>${renderNotes(item.notes)}<button class="add-note-btn" onclick="addNote('daily',${i})">+ note</button></td>
         <td class="actions-col"><button class="btn-edit" onclick="editRow(this)">Edit</button><button class="btn-delete" onclick="deleteDailyRow(${i})">X</button></td>`;
     }
     tbody.appendChild(tr);
@@ -1331,6 +1411,16 @@ function renderApprovals() {
   const tbody = document.getElementById('tableBody-approvals');
   tbody.innerHTML = '';
   const statusBadge = '<span class="status-select status-for-approval" style="display:inline-block;cursor:default;border:1px solid #bfdbfe;border-radius:20px;padding:4px 10px;font-size:12px">For Approval</span>';
+  const canApprove = currentUser && currentUser.canApprove;
+
+  function approvalActions(sheet, i) {
+    let html = '<button class="btn-edit" onclick="goToSource(\'' + sheet + '\',' + i + ')">View</button> ';
+    if (canApprove) {
+      html += '<button class="btn-approve" onclick="approveItem(\'' + sheet + '\',' + i + ')">Approve</button> ';
+      html += '<button class="btn-reject" onclick="rejectItem(\'' + sheet + '\',' + i + ')">Reject</button>';
+    }
+    return html;
+  }
 
   projectsData.forEach((item, i) => {
     if (item.type === 'section' || item.status !== 'For Approval') return;
@@ -1342,8 +1432,8 @@ function renderApprovals() {
       <td>${esc(item.cat)} - ${esc(item.scope)}</td>
       <td>${statusBadge}</td>
       <td class="date-cell">${esc(item.updated)}</td>
-      <td>${esc(item.notes)}</td>
-      <td style="text-align:center"><button class="btn-edit" onclick="goToSource('projects',${i})">View</button></td>`;
+      <td>${renderNotes(item.notes)}</td>
+      <td style="text-align:center">${approvalActions('projects', i)}</td>`;
     tbody.appendChild(tr);
   });
   quickfixData.forEach((item, i) => {
@@ -1356,8 +1446,8 @@ function renderApprovals() {
       <td>${esc(item.desc)}</td>
       <td>${statusBadge}</td>
       <td class="date-cell">${esc(item.updated)}</td>
-      <td>${esc(item.notes)}</td>
-      <td style="text-align:center"><button class="btn-edit" onclick="goToSource('quickfix',${i})">View</button></td>`;
+      <td>${renderNotes(item.notes)}</td>
+      <td style="text-align:center">${approvalActions('quickfix', i)}</td>`;
     tbody.appendChild(tr);
   });
   dailyData.forEach((item, i) => {
@@ -1370,8 +1460,8 @@ function renderApprovals() {
       <td>${esc(item.date)}</td>
       <td>${statusBadge}</td>
       <td class="date-cell">${esc(item.updated)}</td>
-      <td>${esc(item.notes)}</td>
-      <td style="text-align:center"><button class="btn-edit" onclick="goToSource('daily',${i})">View</button></td>`;
+      <td>${renderNotes(item.notes)}</td>
+      <td style="text-align:center">${approvalActions('daily', i)}</td>`;
     tbody.appendChild(tr);
   });
   if (tbody.children.length === 0) {
@@ -1379,6 +1469,33 @@ function renderApprovals() {
     tr.innerHTML = '<td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted);font-size:14px">No items pending approval</td>';
     tbody.appendChild(tr);
   }
+}
+
+function approveItem(sheet, index) {
+  if (!currentUser || !currentUser.canApprove) { alert('Only managers can approve.'); return; }
+  let dataArr = sheet === 'projects' ? projectsData : sheet === 'quickfix' ? quickfixData : dailyData;
+  dataArr[index].status = 'Approved';
+  dataArr[index].updated = now();
+  if (!dataArr[index].notes) dataArr[index].notes = [];
+  if (typeof dataArr[index].notes === 'string') { const old = dataArr[index].notes; dataArr[index].notes = old ? [{ user:'System', time:'', text:old }] : []; }
+  dataArr[index].notes.push({ user: currentUser.name, time: now(), text: 'Approved' });
+  saveAll();
+  renderAll();
+  showNotice('Approved!');
+}
+
+function rejectItem(sheet, index) {
+  if (!currentUser || !currentUser.canApprove) { alert('Only managers can approve/reject.'); return; }
+  const reason = prompt('Reason for rejection (optional):');
+  let dataArr = sheet === 'projects' ? projectsData : sheet === 'quickfix' ? quickfixData : dailyData;
+  dataArr[index].status = 'On Hold';
+  dataArr[index].updated = now();
+  if (!dataArr[index].notes) dataArr[index].notes = [];
+  if (typeof dataArr[index].notes === 'string') { const old = dataArr[index].notes; dataArr[index].notes = old ? [{ user:'System', time:'', text:old }] : []; }
+  dataArr[index].notes.push({ user: currentUser.name, time: now(), text: 'Rejected' + (reason ? ': ' + reason : '') });
+  saveAll();
+  renderAll();
+  showNotice('Rejected — moved to On Hold');
 }
 
 function goToSource(sheet, index) {
@@ -1477,6 +1594,20 @@ function editRow(btn) {
       td.contentEditable = 'true';
     } else {
       tr.querySelectorAll('td[contenteditable]').forEach(td => td.contentEditable = 'true');
+      // Make URL cell editable with inputs
+      const urlCell = tr.querySelector('.url-cell');
+      if (urlCell) {
+        const liveUrl = tr.dataset.liveurl || '';
+        const testUrl = tr.dataset.testurl || '';
+        urlCell.innerHTML = `<input class="url-edit-input" value="${esc(liveUrl)}" placeholder="Live URL" data-urltype="live" style="width:100%;margin-bottom:3px;padding:4px 6px;font-size:11px;border:1px solid var(--border);border-radius:4px">
+          <input class="url-edit-input" value="${esc(testUrl)}" placeholder="Test URL" data-urltype="test" style="width:100%;padding:4px 6px;font-size:11px;border:1px solid var(--border);border-radius:4px">`;
+      }
+      // Make link cell editable for quickfix
+      const linkCell = tr.querySelector('.link-cell');
+      if (linkCell) {
+        const link = tr.dataset.link || '';
+        linkCell.innerHTML = `<input class="link-edit-input" value="${esc(link)}" placeholder="Link / Location" style="width:100%;padding:4px 6px;font-size:11px;border:1px solid var(--border);border-radius:4px">`;
+      }
     }
     btn.textContent = 'Done';
     btn.className = 'btn-done';
@@ -1498,6 +1629,29 @@ function editRow(btn) {
       }
     } else {
       tr.querySelectorAll('td[contenteditable]').forEach(td => td.contentEditable = 'false');
+      // Save URL edits back
+      const urlInputs = tr.querySelectorAll('.url-edit-input');
+      if (urlInputs.length === 2) {
+        const liveUrl = urlInputs[0].value.trim();
+        const testUrl = urlInputs[1].value.trim();
+        tr.dataset.liveurl = liveUrl;
+        tr.dataset.testurl = testUrl;
+        const urlCell = tr.querySelector('.url-cell');
+        let urlHtml = '';
+        if (liveUrl) urlHtml += `<a href="${esc(liveUrl)}" target="_blank" class="url-live">Live</a> `;
+        if (testUrl) urlHtml += `<a href="${esc(testUrl)}" target="_blank" class="url-test">Test</a>`;
+        if (!liveUrl && !testUrl) urlHtml = '<span class="url-none">--</span>';
+        urlCell.innerHTML = urlHtml;
+      }
+      // Save link edit for quickfix
+      const linkInput = tr.querySelector('.link-edit-input');
+      if (linkInput) {
+        const link = linkInput.value.trim();
+        tr.dataset.link = link;
+        const linkCell = tr.querySelector('.link-cell');
+        if (link) linkCell.innerHTML = `<a href="${esc(link)}" target="_blank" class="url-test" style="word-break:break-all">${esc(link.length > 35 ? link.substring(0,35)+'...' : link)}</a>`;
+        else linkCell.innerHTML = '--';
+      }
     }
     btn.textContent = 'Edit';
     btn.className = 'btn-edit';
@@ -1792,12 +1946,17 @@ function esc(str) {
   return d.innerHTML;
 }
 
-// === GITHUB GIST CONFIG ===
+// === CONFIG ===
 const GIST_ID = 'cabadb6059f69bf3734115f193fb748f';
-const PASSCODE = '33026';
-// Token split for push protection
 const _t = ['gho','_iJmOmg6VoND','zlRspHWWsqos','zlkcOL71nqgPV'];
 function _gt() { return _t.join(''); }
+
+// === USERS ===
+const USERS = {
+  '55598': { name: 'Mark', role: 'designer', cssClass: 'user-mark', metaClass: 'note-meta-mark', canApprove: false },
+  '33026': { name: 'Sahle', role: 'manager', cssClass: 'user-sahle', metaClass: 'note-meta-sahle', canApprove: true }
+};
+let currentUser = null;
 
 // === CLOUD SAVE/LOAD ===
 async function cloudSave() {
@@ -1861,22 +2020,30 @@ async function cloudLoad() {
 async function unlock() {
   const input = document.getElementById('lockInput');
   const error = document.getElementById('lockError');
-  if (input.value === PASSCODE) {
+  const code = input.value;
+  const user = USERS[code];
+
+  if (user) {
+    currentUser = user;
     input.disabled = true;
     document.querySelector('.lock-btn').disabled = true;
-    document.querySelector('.lock-box p').textContent = 'Loading data...';
+    document.querySelector('.lock-box p').textContent = 'Welcome ' + user.name + '! Loading...';
     error.textContent = '';
 
-    // Try cloud load first
     const cloudOk = await cloudLoad();
-    if (!cloudOk) { loadData(); } // fallback to localStorage
+    if (!cloudOk) { loadData(); }
+
+    // Show user badge
+    const badge = document.getElementById('userBadge');
+    badge.className = 'user-badge ' + user.cssClass;
+    badge.innerHTML = '<span class="user-dot"></span>' + user.name + ' (' + user.role + ')';
 
     document.getElementById('lockScreen').classList.add('hidden');
     document.getElementById('mainApp').style.display = '';
     document.getElementById('autosaveIndicator').style.display = '';
     renderAll();
     startAutoSave();
-    showNotice(cloudOk ? 'Synced from cloud!' : 'Loaded local data');
+    showNotice('Welcome ' + user.name + '!');
   } else {
     input.classList.add('error');
     error.textContent = 'Incorrect passcode. Try again.';
