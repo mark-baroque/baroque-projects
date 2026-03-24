@@ -1136,12 +1136,12 @@ function saveLocal() {
 
 function saveAll() {
   saveLocal();
-  // Cloud save on every change (debounced 5s to prevent API rate limits)
+  // Cloud save on every change (debounced 10s to stay within API limits)
   if (currentUser) {
     if (_cloudSaveTimer) clearTimeout(_cloudSaveTimer);
     _cloudSaveTimer = setTimeout(() => {
       if (!_saving) cloudSave();
-    }, 5000);
+    }, 10000);
   }
 }
 
