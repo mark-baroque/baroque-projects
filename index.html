@@ -300,6 +300,7 @@
   .status-for-approval { color: var(--info); -webkit-text-fill-color: var(--info); background: var(--info-bg); border-color: #bfdbfe; font-weight: 600; }
   .status-approved { color: var(--success); -webkit-text-fill-color: var(--success); background: var(--success-bg); border-color: #a7f3d0; font-weight: 600; }
   .status-completed { color: #047857; -webkit-text-fill-color: #047857; background: #ecfdf5; border-color: #6ee7b7; font-weight: 600; }
+  .status-rejected { color: #b91c1c; -webkit-text-fill-color: #b91c1c; background: #fef2f2; border-color: #fca5a5; font-weight: 600; }
   .status-on-hold { color: var(--danger); -webkit-text-fill-color: var(--danger); background: var(--danger-bg); border-color: #fecaca; font-weight: 600; }
 
   .date-cell { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
@@ -675,6 +676,7 @@
   <button class="tab" onclick="switchTab('daily')">Daily Task</button>
   <button class="tab" onclick="switchTab('approvals')">For Approval</button>
   <button class="tab" onclick="switchTab('approved')">Approved</button>
+  <button class="tab" onclick="switchTab('rejected')">Rejected</button>
 </div>
 
 <!-- PROJECTS SHEET -->
@@ -875,6 +877,28 @@
   </div>
 </div>
 
+<!-- REJECTED SHEET -->
+<div class="sheet" id="sheet-rejected">
+  <p class="info"><span style="display:inline-block;background:var(--danger-bg);color:var(--danger);font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;margin-right:6px">REJECTED</span> All items rejected by Sahle appear here.</p>
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>Source</th>
+          <th>Item</th>
+          <th>Department / Brand</th>
+          <th>Details</th>
+          <th>Status</th>
+          <th>Rejected</th>
+          <th>Notes</th>
+          <th style="width:70px;text-align:center">Action</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody-rejected"></tbody>
+    </table>
+  </div>
+</div>
+
 <!-- ADD ROW MODAL -->
 <div class="modal-overlay" id="addModal">
   <div class="modal">
@@ -1032,7 +1056,7 @@
 </div><!-- end mainApp -->
 
 <script>
-const STATUS_OPTIONS = ['Not Started','In Progress','Pending','For Approval','Approved','Completed','On Hold'];
+const STATUS_OPTIONS = ['Not Started','In Progress','Pending','For Approval','Approved','Rejected','Completed','On Hold'];
 
 const DEFAULT_PROJECTS = [
   { type:"section", label:"1. BaroqueAccess" },
@@ -1529,7 +1553,7 @@ function rejectItem(sheet, index) {
   const reason = prompt('Reason for rejection (optional):');
   let dataArr = sheet === 'projects' ? projectsData : sheet === 'quickfix' ? quickfixData : dailyData;
   if (!dataArr[index]) return;
-  dataArr[index].status = 'On Hold';
+  dataArr[index].status = 'Rejected';
   dataArr[index].updated = now();
   if (!dataArr[index].notes || typeof dataArr[index].notes === 'string') {
     const old = dataArr[index].notes;
@@ -1539,7 +1563,7 @@ function rejectItem(sheet, index) {
   saveLocal();
   renderAll();
   cloudSave();
-  showNotice('Rejected — moved to On Hold');
+  showNotice('Rejected');
 }
 
 async function refreshFromCloud() {
@@ -1658,6 +1682,60 @@ function revokeItem(sheet, index) {
   showNotice('Revoked — sent back to For Approval');
 }
 
+function renderRejected() {
+  const tbody = document.getElementById('tableBody-rejected');
+  tbody.innerHTML = '';
+  const statusBadge = '<span class="status-select status-rejected" style="display:inline-block;cursor:default;border:1px solid #fca5a5;border-radius:20px;padding:4px 10px;font-size:12px">Rejected</span>';
+
+  projectsData.forEach((item, i) => {
+    if (item.type === 'section' || item.status !== 'Rejected') return;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><span class="approval-source source-projects">Projects</span></td>
+      <td>${esc(item.sub)}</td>
+      <td>${esc(item.dept)}</td>
+      <td>${esc(item.cat)} - ${esc(item.scope)}</td>
+      <td>${statusBadge}</td>
+      <td class="date-cell">${esc(item.updated)}</td>
+      <td>${renderNotes(item.notes)}</td>
+      <td style="text-align:center"><button class="btn-edit" onclick="goToSource('projects',${i})">View</button></td>`;
+    tbody.appendChild(tr);
+  });
+  quickfixData.forEach((item, i) => {
+    if (item.type === 'section' || item.status !== 'Rejected') return;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><span class="approval-source source-quickfix">Quick Fix</span></td>
+      <td>${esc(item.task)}</td>
+      <td>${esc(item.dept)}</td>
+      <td>${esc(item.desc)}</td>
+      <td>${statusBadge}</td>
+      <td class="date-cell">${esc(item.updated)}</td>
+      <td>${renderNotes(item.notes)}</td>
+      <td style="text-align:center"><button class="btn-edit" onclick="goToSource('quickfix',${i})">View</button></td>`;
+    tbody.appendChild(tr);
+  });
+  dailyData.forEach((item, i) => {
+    if (item.type === 'section' || item.status !== 'Rejected') return;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><span class="approval-source source-daily">Daily</span></td>
+      <td>${esc(item.task)}</td>
+      <td>${esc(item.dept)}</td>
+      <td>${esc(item.date)}</td>
+      <td>${statusBadge}</td>
+      <td class="date-cell">${esc(item.updated)}</td>
+      <td>${renderNotes(item.notes)}</td>
+      <td style="text-align:center"><button class="btn-edit" onclick="goToSource('daily',${i})">View</button></td>`;
+    tbody.appendChild(tr);
+  });
+  if (tbody.children.length === 0) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted);font-size:14px">No rejected items</td>';
+    tbody.appendChild(tr);
+  }
+}
+
 function goToSource(sheet, index) {
   switchTab(sheet);
   setTimeout(() => {
@@ -1682,6 +1760,7 @@ function renderAll() {
   renderDaily();
   renderApprovals();
   renderApproved();
+  renderRejected();
 }
 
 function onExistsChange(sel, index) {
