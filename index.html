@@ -659,7 +659,7 @@
     <span class="user-badge" id="userBadge"></span>
     <button class="btn-add" onclick="addRow()">+ Add Row</button>
     <button class="btn-add" onclick="addSectionHeader()">+ Add Section</button>
-    <button class="btn-save" onclick="readAll();saveAll();cloudSave().then(()=>showNotice('Saved to cloud!'))" title="Save to cloud">
+    <button class="btn-save" onclick="readAll();saveAll();showNotice('Saved!')" title="Save to cloud">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;vertical-align:-2px"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
       Save
     </button>
@@ -1125,10 +1125,22 @@ function loadData() {
   dailyData = sd ? JSON.parse(sd) : JSON.parse(JSON.stringify(DEFAULT_DAILY));
 }
 
-function saveAll() {
+let _saving = false;
+let _cloudSaveTimer = null;
+
+function saveLocal() {
   localStorage.setItem('baroque_projects_v5', JSON.stringify(projectsData));
   localStorage.setItem('baroque_quickfix_v2', JSON.stringify(quickfixData));
   localStorage.setItem('baroque_daily_v2', JSON.stringify(dailyData));
+}
+
+function saveAll() {
+  saveLocal();
+  // Auto cloud save on every change (debounced 2s)
+  if (currentUser && !_saving) {
+    if (_cloudSaveTimer) clearTimeout(_cloudSaveTimer);
+    _cloudSaveTimer = setTimeout(() => { cloudSave(); }, 2000);
+  }
 }
 
 function manualSave() {
@@ -1140,7 +1152,6 @@ function manualSave() {
 function autoSave() {
   readAll();
   saveAll();
-  cloudSave();
 }
 
 function readAll() {
@@ -1511,7 +1522,6 @@ function approveItem(sheet, index) {
   dataArr[index].notes.push({ user: currentUser.name, time: now(), text: 'Approved' });
   saveAll();
   renderAll();
-  cloudSave();
   showNotice('Approved!');
 }
 
@@ -1529,7 +1539,6 @@ function rejectItem(sheet, index) {
   dataArr[index].notes.push({ user: currentUser.name, time: now(), text: 'Rejected' + (reason ? ': ' + reason : '') });
   saveAll();
   renderAll();
-  cloudSave();
   showNotice('Rejected — moved to On Hold');
 }
 
@@ -1629,7 +1638,6 @@ function revokeItem(sheet, index) {
   dataArr[index].notes.push({ user: currentUser.name, time: now(), text: 'Revoked approval — sent back for review' });
   saveAll();
   renderAll();
-  cloudSave();
   showNotice('Revoked — sent back to For Approval');
 }
 
@@ -1717,7 +1725,6 @@ function onStatusChange(sel, sheet, index) {
   saveAll();
   renderApprovals();
   renderApproved();
-  cloudSave();
 }
 
 function editRow(btn) {
@@ -2098,6 +2105,7 @@ let currentUser = null;
 
 // === CLOUD SAVE/LOAD ===
 async function cloudSave() {
+  _saving = true;
   const payload = {
     projects: projectsData,
     quickfix: quickfixData,
@@ -2116,17 +2124,18 @@ async function cloudSave() {
       })
     });
     if (res.ok) {
-      saveAll(); // also save locally
+      saveLocal();
       const timeStr = new Date().toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
-      document.getElementById('autosaveTime').textContent = timeStr;
+      const el = document.getElementById('autosaveTime');
+      if (el) el.textContent = timeStr;
       const dot = document.querySelector('.autosave-indicator .dot');
-      dot.style.background = 'var(--gold)';
-      setTimeout(() => { dot.style.background = 'var(--success)'; }, 500);
+      if (dot) { dot.style.background = 'var(--gold)'; setTimeout(() => { dot.style.background = 'var(--success)'; }, 500); }
     }
   } catch(e) {
     console.log('Cloud save failed, saved locally', e);
-    saveAll();
+    saveLocal();
   }
+  _saving = false;
 }
 
 async function cloudLoad() {
@@ -2144,7 +2153,7 @@ async function cloudLoad() {
       else { quickfixData = JSON.parse(JSON.stringify(DEFAULT_QUICKFIX)); }
       if (data.daily) { dailyData = data.daily; }
       else { dailyData = JSON.parse(JSON.stringify(DEFAULT_DAILY)); }
-      saveAll();
+      saveLocal();
       return true;
     }
   } catch(e) {
@@ -2234,7 +2243,7 @@ function startAutoSave() {
   if (autoSaveInterval) clearInterval(autoSaveInterval);
   // Initial save timestamp
   document.getElementById('autosaveTime').textContent = new Date().toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
-  autoSaveInterval = setInterval(() => { readAll(); saveAll(); cloudSave(); }, 60000);
+  autoSaveInterval = setInterval(() => { readAll(); saveAll(); }, 60000);
 }
 
 // Focus passcode input on load
