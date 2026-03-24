@@ -1136,10 +1136,9 @@ function saveLocal() {
 
 function saveAll() {
   saveLocal();
-  // Auto cloud save on every change (debounced 2s)
+  // Cloud save immediately on every change
   if (currentUser && !_saving) {
-    if (_cloudSaveTimer) clearTimeout(_cloudSaveTimer);
-    _cloudSaveTimer = setTimeout(() => { cloudSave(); }, 2000);
+    cloudSave();
   }
 }
 
