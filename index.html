@@ -2167,22 +2167,21 @@ async function cloudSave() {
 async function cloudLoad() {
   try {
     const res = await fetch('https://api.github.com/gists/' + GIST_ID, {
-      headers: { 'Authorization': 'token ' + _gt() }
+      headers: { 'Authorization': 'token ' + _gt() },
+      cache: 'no-store'
     });
-    if (res.ok) {
-      const gist = await res.json();
-      const data = JSON.parse(gist.files['data.json'].content);
-      if (data.projects && data.projects.length > 0) projectsData = data.projects;
-      else projectsData = JSON.parse(JSON.stringify(DEFAULT_PROJECTS));
-      if (data.quickfix) quickfixData = data.quickfix;
-      else quickfixData = JSON.parse(JSON.stringify(DEFAULT_QUICKFIX));
-      if (data.daily) dailyData = data.daily;
-      else dailyData = JSON.parse(JSON.stringify(DEFAULT_DAILY));
-      saveLocal();
-      return true;
-    }
-  } catch(e) { console.log('Cloud load failed', e); }
-  return false;
+    if (!res.ok) return false;
+    const gist = await res.json();
+    if (!gist.files || !gist.files['data.json']) return false;
+    const raw = gist.files['data.json'].content;
+    if (!raw || raw === '{}' || raw === '{"check":true}') return false;
+    const data = JSON.parse(raw);
+    if (data.projects && data.projects.length > 0) projectsData = data.projects;
+    else projectsData = JSON.parse(JSON.stringify(DEFAULT_PROJECTS));
+    quickfixData = (data.quickfix && data.quickfix.length >= 0) ? data.quickfix : JSON.parse(JSON.stringify(DEFAULT_QUICKFIX));
+    dailyData = (data.daily && data.daily.length >= 0) ? data.daily : JSON.parse(JSON.stringify(DEFAULT_DAILY));
+    return true;
+  } catch(e) { console.log('Cloud load failed', e); return false; }
 }
 
 // === LOCK SCREEN ===
@@ -2196,19 +2195,25 @@ async function unlock() {
     currentUser = user;
     input.disabled = true;
     document.querySelector('.lock-btn').disabled = true;
-    document.querySelector('.lock-box p').textContent = 'Welcome ' + user.name + '! Loading from cloud...';
+    document.querySelector('.lock-box p').textContent = 'Welcome ' + user.name + '! Loading...';
     error.textContent = '';
 
-    // ALWAYS try cloud first — this is the source of truth
+    // STEP 1: Always load from cloud — cloud is the source of truth
     let cloudOk = false;
-    try {
-      cloudOk = await cloudLoad();
-    } catch(e) { console.log('Cloud load error:', e); }
+    try { cloudOk = await cloudLoad(); } catch(e) {}
 
-    if (!cloudOk) {
-      // Cloud failed — try localStorage as fallback
+    if (cloudOk) {
+      // Cloud loaded — save to localStorage as cache
+      saveLocal();
+    } else {
+      // Cloud failed — try localStorage
       loadData();
-      console.log('Using localStorage fallback');
+      // If localStorage also empty (new computer/cleared cache), use defaults
+      if (!projectsData || projectsData.length === 0) {
+        projectsData = JSON.parse(JSON.stringify(DEFAULT_PROJECTS));
+        quickfixData = JSON.parse(JSON.stringify(DEFAULT_QUICKFIX));
+        dailyData = JSON.parse(JSON.stringify(DEFAULT_DAILY));
+      }
     }
 
     // Show user badge
@@ -2221,7 +2226,7 @@ async function unlock() {
     document.getElementById('autosaveIndicator').style.display = '';
     renderAll();
     startAutoSave();
-    showNotice(cloudOk ? 'Welcome ' + user.name + '!' : 'Welcome ' + user.name + ' (offline mode)');
+    showNotice(cloudOk ? 'Welcome ' + user.name + '!' : 'Welcome ' + user.name + ' (offline)');
   } else {
     input.classList.add('error');
     error.textContent = 'Incorrect passcode. Try again.';
