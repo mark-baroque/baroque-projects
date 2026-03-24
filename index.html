@@ -1051,7 +1051,7 @@
 </div>
 
 <div class="save-notice" id="saveNotice">Saved!</div>
-<div class="autosave-indicator" id="autosaveIndicator" style="display:none"><span class="dot"></span>Cloud: <span id="autosaveTime"></span></div>
+<div class="autosave-indicator" id="autosaveIndicator" style="display:none"><span class="dot"></span>Cloud: <span id="autosaveTime"></span> | Saves left: <span id="savesRemaining">--</span>/100</div>
 
 </div><!-- end mainApp -->
 
@@ -2230,11 +2230,19 @@ async function cloudSave() {
       body: JSON.stringify({ files: { 'data.json': { content: payload } } })
     });
     const timeStr = new Date().toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+    // Update remaining saves
+    const remaining = res.headers.get('x-ratelimit-remaining');
+    const limEl = document.getElementById('savesRemaining');
+    if (remaining !== null && limEl) {
+      limEl.textContent = remaining;
+      if (parseInt(remaining) < 10) limEl.style.color = 'var(--danger)';
+      else limEl.style.color = '';
+    }
     if (res.ok) {
       if (el) el.textContent = timeStr;
       if (dot) dot.style.background = 'var(--success)';
     } else {
-      if (el) el.textContent = 'cloud busy - data safe locally, retry Save later';
+      if (el) el.textContent = 'cloud busy - data safe locally, retry later';
       if (dot) dot.style.background = 'var(--danger)';
     }
   } catch(e) {
