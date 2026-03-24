@@ -1140,28 +1140,28 @@ function saveLocal() {
 // This is the ONLY save function everything calls
 function saveAll() {
   saveLocal();
-  scheduleCloudSave();
-}
-
-function scheduleCloudSave() {
-  if (!currentUser || _saving) return;
-  if (_cloudSaveTimer) clearTimeout(_cloudSaveTimer);
-  _cloudSaveTimer = setTimeout(() => { cloudSave(); }, 10000);
+  // Schedule cloud save — 30s debounce to stay under 100 writes/hour
+  if (currentUser) {
+    if (_cloudSaveTimer) clearTimeout(_cloudSaveTimer);
+    _cloudSaveTimer = setTimeout(() => { if (!_saving) cloudSave(); }, 30000);
+    // Update indicator to show pending
+    const el = document.getElementById('autosaveTime');
+    if (el && !_saving) el.textContent = 'pending...';
+  }
 }
 
 // Save button — reads DOM edits, saves immediately to cloud
 async function doSave() {
   readAll();
   saveLocal();
+  if (_cloudSaveTimer) clearTimeout(_cloudSaveTimer);
   await cloudSave();
-  showNotice('Saved to cloud!');
 }
 
 // Called when Edit row clicks Done — reads DOM into data
 function autoSave() {
   readAll();
   saveLocal();
-  scheduleCloudSave();
 }
 
 function readAll() {
@@ -1727,6 +1727,15 @@ function onPctChange(sel, index) {
 }
 
 function onStatusChange(sel, sheet, index) {
+  // Sahle (manager) cannot change status on sheets — only approve/reject in Approvals
+  if (currentUser && currentUser.canApprove) {
+    alert('Status changes are made by the design team. Use the Approvals tab to approve or reject.');
+    // Revert the select
+    let dataArr = sheet === 'projects' ? projectsData : sheet === 'quickfix' ? quickfixData : dailyData;
+    if (dataArr[index]) sel.value = dataArr[index].status || 'Not Started';
+    sel.className = 'status-select ' + statusClass(sel.value);
+    return;
+  }
   sel.className = 'status-select ' + statusClass(sel.value);
   // Auto-stamp the date
   const tr = sel.closest('tr');
@@ -2279,7 +2288,8 @@ let autoSaveInterval = null;
 function startAutoSave() {
   if (autoSaveInterval) clearInterval(autoSaveInterval);
   document.getElementById('autosaveTime').textContent = new Date().toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
-  autoSaveInterval = setInterval(() => { cloudSave(); }, 60000);
+  // Cloud sync every 2 minutes — max 30 writes/hour (limit is 100)
+  autoSaveInterval = setInterval(() => { if (!_saving) cloudSave(); }, 120000);
 }
 
 // Focus passcode input on load
