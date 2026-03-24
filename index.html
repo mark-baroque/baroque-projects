@@ -1027,7 +1027,7 @@
 </div>
 
 <div class="save-notice" id="saveNotice">Saved!</div>
-<div class="autosave-indicator" id="autosaveIndicator" style="display:none"><span class="dot"></span>Auto-saved <span id="autosaveTime"></span></div>
+<div class="autosave-indicator" id="autosaveIndicator" style="display:none"><span class="dot"></span>Cloud: <span id="autosaveTime"></span></div>
 
 </div><!-- end mainApp -->
 
@@ -2155,7 +2155,7 @@ async function cloudSave() {
       if (el) el.textContent = timeStr;
       if (dot) dot.style.background = 'var(--success)';
     } else {
-      if (el) el.textContent = 'save failed - click Save to retry';
+      if (el) el.textContent = 'cloud busy - data safe locally, retry Save later';
       if (dot) dot.style.background = 'var(--danger)';
     }
   } catch(e) {
