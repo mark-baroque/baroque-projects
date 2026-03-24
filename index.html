@@ -1556,6 +1556,15 @@ function renderApproved() {
   const tbody = document.getElementById('tableBody-approved');
   tbody.innerHTML = '';
   const statusBadge = '<span class="status-select status-approved" style="display:inline-block;cursor:default;border:1px solid #a7f3d0;border-radius:20px;padding:4px 10px;font-size:12px">Approved</span>';
+  const canApprove = currentUser && currentUser.canApprove;
+
+  function approvedActions(sheet, i) {
+    let html = '<button class="btn-edit" onclick="goToSource(\'' + sheet + '\',' + i + ')">View</button> ';
+    if (canApprove) {
+      html += '<button class="btn-reject" onclick="revokeItem(\'' + sheet + '\',' + i + ')">Revoke</button>';
+    }
+    return html;
+  }
 
   projectsData.forEach((item, i) => {
     if (item.type === 'section' || item.status !== 'Approved') return;
@@ -1568,7 +1577,7 @@ function renderApproved() {
       <td>${statusBadge}</td>
       <td class="date-cell">${esc(item.updated)}</td>
       <td>${renderNotes(item.notes)}</td>
-      <td style="text-align:center"><button class="btn-edit" onclick="goToSource('projects',${i})">View</button></td>`;
+      <td style="text-align:center">${approvedActions('projects', i)}</td>`;
     tbody.appendChild(tr);
   });
   quickfixData.forEach((item, i) => {
@@ -1582,7 +1591,7 @@ function renderApproved() {
       <td>${statusBadge}</td>
       <td class="date-cell">${esc(item.updated)}</td>
       <td>${renderNotes(item.notes)}</td>
-      <td style="text-align:center"><button class="btn-edit" onclick="goToSource('quickfix',${i})">View</button></td>`;
+      <td style="text-align:center">${approvedActions('quickfix', i)}</td>`;
     tbody.appendChild(tr);
   });
   dailyData.forEach((item, i) => {
@@ -1596,7 +1605,7 @@ function renderApproved() {
       <td>${statusBadge}</td>
       <td class="date-cell">${esc(item.updated)}</td>
       <td>${renderNotes(item.notes)}</td>
-      <td style="text-align:center"><button class="btn-edit" onclick="goToSource('daily',${i})">View</button></td>`;
+      <td style="text-align:center">${approvedActions('daily', i)}</td>`;
     tbody.appendChild(tr);
   });
   if (tbody.children.length === 0) {
@@ -1604,6 +1613,23 @@ function renderApproved() {
     tr.innerHTML = '<td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted);font-size:14px">No approved items yet</td>';
     tbody.appendChild(tr);
   }
+}
+
+function revokeItem(sheet, index) {
+  if (!currentUser || !currentUser.canApprove) { alert('Only managers can revoke.'); return; }
+  let dataArr = sheet === 'projects' ? projectsData : sheet === 'quickfix' ? quickfixData : dailyData;
+  if (!dataArr[index]) return;
+  dataArr[index].status = 'For Approval';
+  dataArr[index].updated = now();
+  if (!dataArr[index].notes || typeof dataArr[index].notes === 'string') {
+    const old = dataArr[index].notes;
+    dataArr[index].notes = (old && typeof old === 'string') ? [{ user:'System', time:'', text:old }] : [];
+  }
+  dataArr[index].notes.push({ user: currentUser.name, time: now(), text: 'Revoked approval — sent back for review' });
+  saveAll();
+  renderAll();
+  cloudSave();
+  showNotice('Revoked — sent back to For Approval');
 }
 
 function goToSource(sheet, index) {
